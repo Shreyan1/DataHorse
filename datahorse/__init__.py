@@ -16,12 +16,11 @@ Write a Python function `process({arg_name})` which takes the following input va
 This is the function's purpose: {goal}
 '''
 
-_ask_cache = {}
-
 class Ask:
     def __init__(self, *, verbose=None, mutable=None):
         self.verbose = verbose if verbose is not None else globals()['verbose']
         self.mutable = mutable if mutable is not None else globals()['mutable']
+        self._ask_cache = {}
 
     @staticmethod
     def _fill_template(template, **kw):
@@ -48,22 +47,26 @@ class Ask:
         return self._fill_template(template, arg_name=arg_name, arg=arg_summary.strip(), goal=goal.strip())
 
     def _run_prompt(self, prompt):
-        cache = _ask_cache
-        completion = cache.get(prompt) or client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Write the function in a Python code block with all necessary imports and no example usage.",
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
-            model=model,
-        )
-        cache[prompt] = completion
-        return completion.choices[0].message.content
+        try:
+            cache = self._ask_cache
+            completion = cache.get(prompt) or client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Write the function in a Python code block with all necessary imports and no example usage.",
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+                model=model,
+            )
+            cache[prompt] = completion
+            return completion.choices[0].message.content
+        except Exception as e:
+            print(f"Error during API call: {e}")
+            return None
 
     def _extract_code_block(self, text):
         import re
